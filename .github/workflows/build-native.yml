@@ -63,7 +63,7 @@ jobs:
           python3 ci/patch161.py
 
           cat ci/162.b64.00 ci/162.b64.01 ci/162.b64.02 ci/162.b64.03 ci/162.b64.04 ci/162.b64.05 ci/162.b64.06 ci/162.b64.07 ci/162.b64.08 ci/162.b64.09 ci/162.b64.10 ci/162.b64.11 ci/162.b64.12 ci/162.b64.13 ci/162.b64.14 > /tmp/overlay162.b64
-          test "$(wc -c < /tmp/overlay162.b64)" -eq 42272
+          echo "overlay162_base64_bytes=$(wc -c < /tmp/overlay162.b64)"
           base64 -d /tmp/overlay162.b64 > /tmp/overlay162.tar.gz
           echo "23afb66fb7b40ddf494d869be923d6acba87c06808887c36290814bbd98c419f  /tmp/overlay162.tar.gz" | sha256sum -c -
           gzip -t /tmp/overlay162.tar.gz
