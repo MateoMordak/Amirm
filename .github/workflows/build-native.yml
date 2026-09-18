@@ -62,6 +62,15 @@ jobs:
               s=s.replace(needle,insert+needle)
               p.write_text(s)
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("native/app/build.gradle.kts")
+          s=p.read_text()
+          s=re.sub(r'\n    signingConfigs \{.*?\n    \}\n\n    buildTypes', '\n    buildTypes', s, flags=re.S)
+          s=s.replace('            signingConfig = signingConfigs.getByName("release")\n','')
+          p.write_text(s)
+          PY
           ! grep -R -n 'WebView' native/app/src/main/java/ir/dinavo/fraudwatch
 
       - name: Build unsigned release APK
