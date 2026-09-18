@@ -53,9 +53,7 @@ jobs:
           s=p.read_text()
           if "static int installedVersionCode(Context context)" not in s:
               needle="    private static boolean isReleaseSignatureTrusted(Context context)"
-              insert='''    static int installedVersionCode(Context context){try{PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;return code>0&&code<=Integer.MAX_VALUE?(int)code:APP_VERSION_CODE;}catch(Exception e){return APP_VERSION_CODE;}}
-    static String installedVersionName(Context context){try{String n=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName;return n==null||n.isEmpty()?APP_VERSION_NAME:n;}catch(Exception e){return APP_VERSION_NAME;}}
-'''
+              insert='    static int installedVersionCode(Context context){try{PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;return code>0&&code<=Integer.MAX_VALUE?(int)code:APP_VERSION_CODE;}catch(Exception e){return APP_VERSION_CODE;}}\\n    static String installedVersionName(Context context){try{String n=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName;return n==null||n.isEmpty()?APP_VERSION_NAME:n;}catch(Exception e){return APP_VERSION_NAME;}}\\n'
               if needle not in s:
                   raise SystemExit("MainActivity insertion point missing")
               s=s.replace(needle,insert+needle)
