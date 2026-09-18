@@ -102,8 +102,9 @@ jobs:
           # Never publish another stripped/minimal IRS Spect artifact.
           test "$SIZE" -ge 500000
           unzip -t "$APK" >/dev/null
-          unzip -l "$APK" | grep -q 'irs_spect_logo.png'
-          unzip -l "$APK" | grep -q 'irs_spect_launcher.png'
+          unzip -l "$APK" > /tmp/apk-list.txt
+          grep -q 'irs_spect_logo.png' /tmp/apk-list.txt
+          grep -q 'irs_spect_launcher.png' /tmp/apk-list.txt
           sha256sum "$APK"
 
       - name: Upload unsigned APK
