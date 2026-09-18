@@ -27,21 +27,22 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Reassemble full IRS Spect 1.6.1 source
+      - name: Reassemble IRS Spect 1.6.2 source
         run: |
           set -euo pipefail
+
           cat ci/src.b64.00 ci/src.b64.01 ci/src.b64.02 ci/src.b64.03 ci/src.b64.04 > /tmp/base.b64
           base64 -d /tmp/base.b64 > /tmp/base.tar.gz
           gzip -t /tmp/base.tar.gz
           mkdir -p native
           tar -xzf /tmp/base.tar.gz -C native
 
-          cat ci/160.b64.00 ci/160.b64.01 ci/160.b64.02 ci/160.b64.03a ci/160.b64.03b1 ci/160.b64.03b211 ci/160.b64.03b212a ci/160.b64.03b212b1 ci/160.b64.03b212b21 ci/160.b64.03b212b221 ci/160.b64.03b212b222 ci/160.b64.03b22 ci/160.b64.04 > /tmp/overlay.b64
-          test "$(wc -c < /tmp/overlay.b64)" -eq 30860
-          base64 -d /tmp/overlay.b64 > /tmp/overlay.tar.xz
-          echo "5a8f05af0bfca0525c941dec65d707e5bc86a791b838f4a17b72e2fabc35721d  /tmp/overlay.tar.xz" | sha256sum -c -
-          xz -t /tmp/overlay.tar.xz
-          tar -xJf /tmp/overlay.tar.xz -C native
+          cat ci/160.b64.00 ci/160.b64.01 ci/160.b64.02 ci/160.b64.03a ci/160.b64.03b1 ci/160.b64.03b211 ci/160.b64.03b212a ci/160.b64.03b212b1 ci/160.b64.03b212b21 ci/160.b64.03b212b221 ci/160.b64.03b212b222 ci/160.b64.03b22 ci/160.b64.04 > /tmp/overlay160.b64
+          test "$(wc -c < /tmp/overlay160.b64)" -eq 30860
+          base64 -d /tmp/overlay160.b64 > /tmp/overlay160.tar.xz
+          echo "5a8f05af0bfca0525c941dec65d707e5bc86a791b838f4a17b72e2fabc35721d  /tmp/overlay160.tar.xz" | sha256sum -c -
+          xz -t /tmp/overlay160.tar.xz
+          tar -xJf /tmp/overlay160.tar.xz -C native
 
           sed -i '/android:debuggable="false"/d' native/app/src/main/AndroidManifest.xml
           sed -i 's/[[:space:]]*package="ir.dinavo.fraudwatch"//' native/app/src/main/AndroidManifest.xml
@@ -52,7 +53,9 @@ jobs:
           s=p.read_text()
           if "static int installedVersionCode(Context context)" not in s:
               needle="    private static boolean isReleaseSignatureTrusted(Context context)"
-              insert='''    static int installedVersionCode(Context context){try{PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;return code>0&&code<=Integer.MAX_VALUE?(int)code:APP_VERSION_CODE;}catch(Exception e){return APP_VERSION_CODE;}}\n    static String installedVersionName(Context context){try{String n=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName;return n==null||n.isEmpty()?APP_VERSION_NAME:n;}catch(Exception e){return APP_VERSION_NAME;}}\n'''
+              insert='''    static int installedVersionCode(Context context){try{PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;return code>0&&code<=Integer.MAX_VALUE?(int)code:APP_VERSION_CODE;}catch(Exception e){return APP_VERSION_CODE;}}
+    static String installedVersionName(Context context){try{String n=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName;return n==null||n.isEmpty()?APP_VERSION_NAME:n;}catch(Exception e){return APP_VERSION_NAME;}}
+'''
               if needle not in s:
                   raise SystemExit("MainActivity insertion point missing")
               s=s.replace(needle,insert+needle)
@@ -61,8 +64,25 @@ jobs:
 
           python3 ci/patch161.py
 
-          # Restore the actual IRS Spect raster identity from the established 1.3.5 release.
-          curl --fail --location --retry 4 --retry-delay 2             --user-agent "IRS-Spect-CI/1.6.1"             "https://dinavo.ir/wp-content/plugins/dinavo-game-audit/assets/android/IRS-Spect-1.3.5.apk"             -o /tmp/irs-original.apk
+          cat ci/162.b64.00 ci/162.b64.01 ci/162.b64.02 ci/162.b64.03 ci/162.b64.04 ci/162.b64.05 ci/162.b64.06 ci/162.b64.07 ci/162.b64.08 ci/162.b64.09 ci/162.b64.10 ci/162.b64.11 ci/162.b64.12 ci/162.b64.13 ci/162.b64.14 > /tmp/overlay162.b64
+          test "$(wc -c < /tmp/overlay162.b64)" -eq 42272
+          base64 -d /tmp/overlay162.b64 > /tmp/overlay162.tar.gz
+          echo "23afb66fb7b40ddf494d869be923d6acba87c06808887c36290814bbd98c419f  /tmp/overlay162.tar.gz" | sha256sum -c -
+          gzip -t /tmp/overlay162.tar.gz
+          tar -xzf /tmp/overlay162.tar.gz -C native
+
+          # Rank chooser: only the three access choices, no owner/name label.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java")
+          s=p.read_text()
+          s=s.replace('TextView who=UiKit.text(this,name,12,UiKit.MUTED);who.setGravity(Gravity.RIGHT);box.addView(who);','')
+          p.write_text(s)
+          PY
+
+          # Keep the established large raster resources in CI; the final user-supplied
+          # identity assets are injected locally before production signing.
+          curl --fail --location --retry 4 --retry-delay 2             --user-agent "IRS-Spect-CI/1.6.2"             "https://dinavo.ir/wp-content/plugins/dinavo-game-audit/assets/android/IRS-Spect-1.3.5.apk"             -o /tmp/irs-original.apk
           unzip -t /tmp/irs-original.apk >/dev/null
           mkdir -p native/app/src/main/res/drawable-nodpi
           unzip -p /tmp/irs-original.apk res/drawable-nodpi-v4/irs_spect_logo.png > native/app/src/main/res/drawable-nodpi/irs_spect_logo.png
@@ -70,7 +90,7 @@ jobs:
           test "$(stat -c%s native/app/src/main/res/drawable-nodpi/irs_spect_logo.png)" -gt 200000
           test "$(stat -c%s native/app/src/main/res/drawable-nodpi/irs_spect_launcher.png)" -gt 150000
 
-          # CI creates an unsigned release only. Production signing stays off GitHub.
+          # CI makes an unsigned artifact. The private signing key never goes to GitHub.
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -81,37 +101,38 @@ jobs:
           p.write_text(s)
           PY
 
-          grep -q 'versionCode = 17' native/app/build.gradle.kts
-          grep -q 'versionName = "1.6.1"' native/app/build.gradle.kts
-          grep -q 'APP_VERSION_CODE=17' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
-          grep -q 'APP_VERSION_NAME="1.6.1"' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
-          grep -q 'R.drawable.irs_spect_logo' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'versionCode = 18' native/app/build.gradle.kts
+          grep -q 'versionName = "1.6.2"' native/app/build.gradle.kts
+          grep -q 'APP_VERSION_CODE=18' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'APP_VERSION_NAME="1.6.2"' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q '"version_code":18' native/app/src/main/assets/irs_spect_release.json
+          grep -q 'syncRiskSwitches' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'multipartProfileMedia' native/app/src/main/java/ir/dinavo/fraudwatch/NativeApi.java
+          grep -q 'dedupeDevices' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'showRankDialog' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          ! grep -q 'TextView who=UiKit.text(this,name' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
           ! grep -R -n 'WebView' native/app/src/main/java/ir/dinavo/fraudwatch
 
-      - name: Build full unsigned release APK
+      - name: Build unsigned 1.6.2 release
         working-directory: native
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Verify complete APK
+      - name: Verify compiled APK
         run: |
           set -euo pipefail
           APK="native/app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
           SIZE="$(stat -c%s "$APK")"
           echo "APK_SIZE=$SIZE"
-          # Never publish another stripped/minimal IRS Spect artifact.
           test "$SIZE" -ge 500000
           unzip -t "$APK" >/dev/null
-          unzip -l "$APK" > /tmp/apk-list.txt
-          # AAPT2 may rewrite packaged resource entry names. Source assets were already
-          # size-verified before compile; the final APK floor prevents a stripped build.
-          grep -E 'res/.*\.(png|webp)' /tmp/apk-list.txt | tail -20 || true
+          unzip -p "$APK" assets/irs_spect_release.json | grep -q '"version_code":18'
           sha256sum "$APK"
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@v4
         with:
-          name: IRS-Spect-Native-1.6.1-unsigned-full
+          name: IRS-Spect-Native-1.6.2-Build-18-unsigned
           path: native/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
           retention-days: 7
