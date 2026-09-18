@@ -159,13 +159,13 @@ final class NativeApi {
         if(authenticated && !token().isEmpty()) connection.setRequestProperty("Authorization","Bearer "+token());
     }
 
-    private static String buildTarget(String root, String path, Map<String,String> params, boolean alternate) throws Exception {
+    private static String buildTarget(String root, String path, Map<String,String> params, boolean alternate) {
         StringBuilder target=new StringBuilder(root).append(path);
         if(params!=null && !params.isEmpty()) {
             target.append(alternate ? '&' : '?'); boolean first=true;
             for(Map.Entry<String,String> e:params.entrySet()) {
                 if(!first) target.append('&'); first=false;
-                target.append(URLEncoder.encode(e.getKey(),"UTF-8")).append('=').append(URLEncoder.encode(e.getValue()==null?"":e.getValue(),"UTF-8"));
+                target.append(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)).append('=').append(URLEncoder.encode(e.getValue()==null?"":e.getValue(), StandardCharsets.UTF_8));
             }
         }
         return target.toString();
