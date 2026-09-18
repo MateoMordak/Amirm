@@ -34,6 +34,8 @@ jobs:
           gzip -t /tmp/irs-native.tar.gz
           mkdir -p native
           tar -xzf /tmp/irs-native.tar.gz -C native
+          sed -i '/android:debuggable="false"/d' native/app/src/main/AndroidManifest.xml
+          sed -i 's/[[:space:]]*package="ir.dinavo.fraudwatch"//' native/app/src/main/AndroidManifest.xml
 
       - name: Build unsigned release APK
         working-directory: native
