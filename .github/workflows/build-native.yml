@@ -69,6 +69,17 @@ jobs:
           gzip -t /tmp/overlay162.tar.gz
           tar -xzf /tmp/overlay162.tar.gz -C native
 
+          # Final source hygiene after the 1.6.2 overlay.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java")
+          s=p.read_text()
+          broken='private Switch channelToggle(String title,String subtitle,boolean checked,boolean enabled){Switch sw=toggle(title+"\n"+subtitle,checked);'
+          fixed='private Switch channelToggle(String title,String subtitle,boolean checked,boolean enabled){Switch sw=toggle(title+"\\n"+subtitle,checked);'
+          s=s.replace(broken,fixed)
+          p.write_text(s)
+          PY
+
           # Rank chooser: only the three access choices, no owner/name label.
           python3 - <<'PY'
           from pathlib import Path
