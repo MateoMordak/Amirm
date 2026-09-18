@@ -69,6 +69,45 @@ jobs:
           gzip -t /tmp/overlay162.tar.gz
           tar -xzf /tmp/overlay162.tar.gz -C native
 
+          # Inject the final IRS Spect visual pack supplied for 1.6.2.
+          echo "8b5dfd0491bbf2e08118d38e26bfd7e01b02fb8245592975cae77d70ba98f5c5  ci/irs-assets-1.6.2-clean.tar.gz" | sha256sum -c -
+          mkdir -p native/app/src/main/assets/irs_icons native/app/src/main/res/drawable-nodpi
+          tar -xzf ci/irs-assets-1.6.2-clean.tar.gz -C native/app/src/main/assets/irs_icons
+          test -s native/app/src/main/assets/irs_icons/app_icon.webp
+          test -s native/app/src/main/assets/irs_icons/brand_emblem.webp
+          test -s native/app/src/main/assets/irs_icons/nav_home.webp
+          test -s native/app/src/main/assets/irs_icons/nav_incidents.webp
+          test -s native/app/src/main/assets/irs_icons/nav_search.webp
+          test -s native/app/src/main/assets/irs_icons/nav_more.webp
+          test -s native/app/src/main/assets/irs_icons/icon_multi.webp
+          cp native/app/src/main/assets/irs_icons/app_icon.webp native/app/src/main/res/drawable-nodpi/irs_spect_launcher_new.webp
+          cp native/app/src/main/assets/irs_icons/brand_emblem.webp native/app/src/main/res/drawable-nodpi/irs_spect_brand_new.webp
+
+          python3 - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path("native/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"),
+              Path("native/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"),
+              Path("native/app/src/main/res/mipmap-anydpi/ic_launcher.xml"),
+              Path("native/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml"),
+          ]
+          for p in paths:
+              if not p.exists():
+                  continue
+              s=p.read_text()
+              import re
+              s=re.sub(r'android:drawable="@drawable/[^"]+"', 'android:drawable="@drawable/irs_spect_launcher_new"', s)
+              s=s.replace('@drawable/ic_launcher_foreground','@drawable/irs_spect_launcher_new')
+              s=s.replace('@drawable/ic_launcher_round','@drawable/irs_spect_launcher_new')
+              s=s.replace('@drawable/ic_launcher','@drawable/irs_spect_launcher_new')
+              p.write_text(s)
+          for name in ("values-v31/styles.xml","values-v35/styles.xml"):
+              p=Path("native/app/src/main/res")/name
+              if p.exists():
+                  s=p.read_text().replace('@drawable/ic_splash','@drawable/irs_spect_brand_new')
+                  p.write_text(s)
+          PY
+
           # Rank chooser: only the three access choices, no owner/name label.
           python3 - <<'PY'
           from pathlib import Path
@@ -125,6 +164,10 @@ jobs:
           test "$SIZE" -ge 500000
           unzip -t "$APK" >/dev/null
           unzip -p "$APK" assets/irs_spect_release.json | grep -q '"version_code":18'
+          unzip -l "$APK" > /tmp/apk-list.txt
+          grep -q 'assets/irs_icons/app_icon.webp' /tmp/apk-list.txt
+          grep -q 'assets/irs_icons/nav_incidents.webp' /tmp/apk-list.txt
+          grep -q 'assets/irs_icons/icon_multi.webp' /tmp/apk-list.txt
           sha256sum "$APK"
 
       - name: Upload unsigned APK
