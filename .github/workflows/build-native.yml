@@ -49,6 +49,19 @@ jobs:
           grep -q 'versionName = "1.6.0"' native/app/build.gradle.kts
           grep -q 'APP_VERSION_CODE=16' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
           grep -q 'APP_VERSION_NAME="1.6.0"' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          sed -i 's/R.drawable.irs_spect_logo/R.drawable.ic_splash/g' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java")
+          s=p.read_text()
+          if "static int installedVersionCode(Context context)" not in s:
+              needle="    private static boolean isReleaseSignatureTrusted(Context context)"
+              insert='''    static int installedVersionCode(Context context){try{PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);long code=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;return code>0&&code<=Integer.MAX_VALUE?(int)code:APP_VERSION_CODE;}catch(Exception e){return APP_VERSION_CODE;}}\n    static String installedVersionName(Context context){try{String n=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName;return n==null||n.isEmpty()?APP_VERSION_NAME:n;}catch(Exception e){return APP_VERSION_NAME;}}\n'''
+              if needle not in s:
+                  raise SystemExit("MainActivity insertion point missing")
+              s=s.replace(needle,insert+needle)
+              p.write_text(s)
+          PY
           ! grep -R -n 'WebView' native/app/src/main/java/ir/dinavo/fraudwatch
 
       - name: Build unsigned release APK
