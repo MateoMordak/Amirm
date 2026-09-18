@@ -35,8 +35,10 @@ jobs:
           mkdir -p native
           tar -xzf /tmp/base.tar.gz -C native
 
-          cat ci/160.b64.00 ci/160.b64.01 ci/160.b64.02 ci/160.b64.03 ci/160.b64.04 > /tmp/overlay.b64
+          cat ci/160.b64.00 ci/160.b64.01 ci/160.b64.02 ci/160.b64.03a ci/160.b64.03b ci/160.b64.04 > /tmp/overlay.b64
+          test "$(wc -c < /tmp/overlay.b64)" -eq 30860
           base64 -d /tmp/overlay.b64 > /tmp/overlay.tar.xz
+          echo "5a8f05af0bfca0525c941dec65d707e5bc86a791b838f4a17b72e2fabc35721d  /tmp/overlay.tar.xz" | sha256sum -c -
           xz -t /tmp/overlay.tar.xz
           tar -xJf /tmp/overlay.tar.xz -C native
 
