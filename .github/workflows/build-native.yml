@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +27,9 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Reassemble IRS Spect 1.6.0 source
+      - name: Reassemble full IRS Spect 1.6.1 source
         run: |
+          set -euo pipefail
           cat ci/src.b64.00 ci/src.b64.01 ci/src.b64.02 ci/src.b64.03 ci/src.b64.04 > /tmp/base.b64
           base64 -d /tmp/base.b64 > /tmp/base.tar.gz
           gzip -t /tmp/base.tar.gz
@@ -45,11 +46,6 @@ jobs:
           sed -i '/android:debuggable="false"/d' native/app/src/main/AndroidManifest.xml
           sed -i 's/[[:space:]]*package="ir.dinavo.fraudwatch"//' native/app/src/main/AndroidManifest.xml
 
-          grep -q 'versionCode = 16' native/app/build.gradle.kts
-          grep -q 'versionName = "1.6.0"' native/app/build.gradle.kts
-          grep -q 'APP_VERSION_CODE=16' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
-          grep -q 'APP_VERSION_NAME="1.6.0"' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
-          sed -i 's/R.drawable.irs_spect_logo/R.drawable.ic_splash/g' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
           python3 - <<'PY'
           from pathlib import Path
           p=Path("native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java")
@@ -62,6 +58,19 @@ jobs:
               s=s.replace(needle,insert+needle)
               p.write_text(s)
           PY
+
+          python3 ci/patch161.py
+
+          # Restore the actual IRS Spect raster identity from the established 1.3.5 release.
+          curl --fail --location --retry 4 --retry-delay 2             --user-agent "IRS-Spect-CI/1.6.1"             "https://dinavo.ir/wp-content/plugins/dinavo-game-audit/assets/android/IRS-Spect-1.3.5.apk"             -o /tmp/irs-original.apk
+          unzip -t /tmp/irs-original.apk >/dev/null
+          mkdir -p native/app/src/main/res/drawable-nodpi
+          unzip -p /tmp/irs-original.apk res/drawable-nodpi-v4/irs_spect_logo.png > native/app/src/main/res/drawable-nodpi/irs_spect_logo.png
+          unzip -p /tmp/irs-original.apk res/drawable-nodpi-v4/irs_spect_launcher.png > native/app/src/main/res/drawable-nodpi/irs_spect_launcher.png
+          test "$(stat -c%s native/app/src/main/res/drawable-nodpi/irs_spect_logo.png)" -gt 200000
+          test "$(stat -c%s native/app/src/main/res/drawable-nodpi/irs_spect_launcher.png)" -gt 150000
+
+          # CI creates an unsigned release only. Production signing stays off GitHub.
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -71,23 +80,36 @@ jobs:
           s=s.replace('            signingConfig = signingConfigs.getByName("release")\n','')
           p.write_text(s)
           PY
+
+          grep -q 'versionCode = 17' native/app/build.gradle.kts
+          grep -q 'versionName = "1.6.1"' native/app/build.gradle.kts
+          grep -q 'APP_VERSION_CODE=17' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'APP_VERSION_NAME="1.6.1"' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
+          grep -q 'R.drawable.irs_spect_logo' native/app/src/main/java/ir/dinavo/fraudwatch/MainActivity.java
           ! grep -R -n 'WebView' native/app/src/main/java/ir/dinavo/fraudwatch
 
-      - name: Build unsigned release APK
+      - name: Build full unsigned release APK
         working-directory: native
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Verify APK output
+      - name: Verify complete APK
         run: |
+          set -euo pipefail
           APK="native/app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
-          echo "APK_SIZE=$(stat -c%s "$APK")"
+          SIZE="$(stat -c%s "$APK")"
+          echo "APK_SIZE=$SIZE"
+          # Never publish another stripped/minimal IRS Spect artifact.
+          test "$SIZE" -ge 500000
+          unzip -t "$APK" >/dev/null
+          unzip -l "$APK" | grep -q 'irs_spect_logo.png'
+          unzip -l "$APK" | grep -q 'irs_spect_launcher.png'
           sha256sum "$APK"
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@v4
         with:
-          name: IRS-Spect-Native-1.6.0-unsigned
+          name: IRS-Spect-Native-1.6.1-unsigned-full
           path: native/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
           retention-days: 7
